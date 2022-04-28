@@ -21,7 +21,9 @@ Temporary Items
 *.ctxt
 .mtj.tmp/
 *.jar
-!jar-files/
+!jar-files/eigenbase-properties-1.1.4.jar
+!jar-files/hitsdb-client-0.4.0.jar
+!jar-files/pentaho-aggdesigner-algorithm-5.1.5-jhyde.tar
 *.war
 *.nar
 *.ear
