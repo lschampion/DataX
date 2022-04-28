@@ -50,4 +50,16 @@ public final class Key {
 
     public static  final String WRITE_BUFFER_SIZE = "writeBufferSize";
 
+
+
+    public final static String KERBEROS = "kerberos";
+
+    public final static String SYSTEM = "system";
+
+    public final static String KEY_TAB_KEY = "keyTabKey";
+
+    public final static String KEY_TAB_VALUE = "keyTabValue";
+
+    public final static String HBASE_SITE_XML = "hbaseSiteXml";
+
 }

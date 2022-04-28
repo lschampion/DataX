@@ -21,6 +21,7 @@ Temporary Items
 *.ctxt
 .mtj.tmp/
 *.jar
+!jar-files/
 *.war
 *.nar
 *.ear

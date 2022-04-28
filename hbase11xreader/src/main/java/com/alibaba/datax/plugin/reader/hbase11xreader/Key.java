@@ -48,4 +48,20 @@ public final class Key {
 
     public final static String SCAN_BATCH_SIZE = "scanBatchSize";
 
+    public final static String KERBEROS = "kerberos";
+
+    public final static String SYSTEM = "system";
+
+    public final static String KEY_TAB_KEY = "keyTabKey";
+
+    public final static String KEY_TAB_VALUE = "keyTabValue";
+
+    public final static String HBASE_SITE_XML = "hbaseSiteXml";
+
+
+
+
+
+
+
 }

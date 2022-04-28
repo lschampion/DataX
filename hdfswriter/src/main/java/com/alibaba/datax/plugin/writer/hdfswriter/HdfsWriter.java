@@ -51,7 +51,7 @@ public class HdfsWriter extends Writer {
             this.defaultFS = this.writerSliceConfig.getNecessaryValue(Key.DEFAULT_FS, HdfsWriterErrorCode.REQUIRED_VALUE);
             //fileType check
             this.fileType = this.writerSliceConfig.getNecessaryValue(Key.FILE_TYPE, HdfsWriterErrorCode.REQUIRED_VALUE);
-            if( !fileType.equalsIgnoreCase("ORC") && !fileType.equalsIgnoreCase("TEXT")){
+            if( !fileType.equalsIgnoreCase("ORC") && !fileType.equalsIgnoreCase("TEXT") && !fileType.equalsIgnoreCase("PAR")){
                 String message = "HdfsWriter插件目前只支持ORC和TEXT两种格式的文件,请将filetype选项的值配置为ORC或者TEXT";
                 throw DataXException.asDataXException(HdfsWriterErrorCode.ILLEGAL_VALUE, message);
             }
@@ -147,6 +147,12 @@ public class HdfsWriter extends Writer {
 
         @Override
         public void prepare() {
+            //增加新增目录
+            LOG.info(String.format("目录不存在 创建目录",path.toString()));
+            if (!hdfsHelper.isPathexists(path)) {
+                Path add_path=new Path(path);
+                hdfsHelper.addDir(add_path);
+            }
             //若路径已经存在，检查path是否是目录
             if(hdfsHelper.isPathexists(path)){
                 if(!hdfsHelper.isPathDir(path)){
@@ -342,7 +348,7 @@ public class HdfsWriter extends Writer {
 
             this.defaultFS = this.writerSliceConfig.getString(Key.DEFAULT_FS);
             this.fileType = this.writerSliceConfig.getString(Key.FILE_TYPE);
-            //得当的已经是绝对路径，eg：hdfs://10.101.204.12:9000/user/hive/warehouse/writer.db/text/test.textfile
+            //得当的已经是临时目录绝对路径 ，eg：hdfs://10.101.204.12:9000/user/hive/warehouse/writer.db/text/test.textfile
             this.fileName = this.writerSliceConfig.getString(Key.FILE_NAME);
 
             hdfsHelper = new HdfsHelper();
@@ -365,6 +371,10 @@ public class HdfsWriter extends Writer {
             }else if(fileType.equalsIgnoreCase("ORC")){
                 //写ORC FILE
                 hdfsHelper.orcFileStartWrite(lineReceiver,this.writerSliceConfig, this.fileName,
+                        this.getTaskPluginCollector());
+            }else if(fileType.equalsIgnoreCase("PAR")){
+                //写PARQUET FILE
+                hdfsHelper.parFileStartWrite(lineReceiver,this.writerSliceConfig, this.fileName,
                         this.getTaskPluginCollector());
             }
 

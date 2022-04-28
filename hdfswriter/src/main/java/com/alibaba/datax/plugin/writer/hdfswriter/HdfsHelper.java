@@ -14,10 +14,13 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat;
+import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapred.*;
@@ -162,6 +165,23 @@ public  class HdfsHelper {
         }
         return exist;
     }
+
+    /**
+     * 当目录不存在创建目录
+     * @param filePath path
+     *                 sgl;
+     */
+    public void addDir(Path filePath) {
+        try {
+            fileSystem.mkdirs(filePath);
+        } catch (IOException e) {
+            String message = String.format("创建文件路径[%s]是否存在时发生网络IO异常,请检查您的网络是否正常！",
+                    "message:filePath =" + filePath);
+            LOG.error(message);
+            throw DataXException.asDataXException(HdfsWriterErrorCode.CONNECT_HDFS_IO_ERROR, e);
+        }
+    }
+
 
     public boolean isPathDir(String filePath) {
         Path path = new Path(filePath);
@@ -395,6 +415,49 @@ public  class HdfsHelper {
             throw DataXException.asDataXException(HdfsWriterErrorCode.Write_FILE_IO_ERROR, e);
         }
     }
+
+    public void parFileStartWrite(RecordReceiver lineReceiver, Configuration config, String fileName,
+                                  TaskPluginCollector taskPluginCollector) {
+        List<Configuration> columns = config.getListConfiguration(Key.COLUMN);
+        String compress = config.getString(Key.COMPRESS, null);
+        List<String> columnNames = getColumnNames(columns);
+        List<ObjectInspector> columnTypeInspectors = getColumnTypeInspectors(columns);
+        StructObjectInspector inspector = (StructObjectInspector) ObjectInspectorFactory
+                .getStandardStructObjectInspector(columnNames, columnTypeInspectors);
+
+        ParquetHiveSerDe parquetHiveSerDe = new ParquetHiveSerDe();
+
+        MapredParquetOutputFormat outFormat = new MapredParquetOutputFormat();
+        if (!"NONE".equalsIgnoreCase(compress) && null != compress) {
+            Class<? extends CompressionCodec> codecClass = getCompressCodec(compress);
+            if (null != codecClass) {
+                outFormat.setOutputCompressorClass(conf, codecClass);
+            }
+        }
+        try {
+            Properties colProperties = new Properties();
+            colProperties.setProperty("columns", String.join(",", columnNames));
+            List<String> colType = Lists.newArrayList();
+            columns.forEach(c -> colType.add(c.getString(Key.TYPE)));
+            colProperties.setProperty("columns.types", String.join(",", colType));
+            RecordWriter writer = (RecordWriter) outFormat.getHiveRecordWriter(conf, new Path(fileName), ObjectWritable.class, true, colProperties, Reporter.NULL);
+            Record record = null;
+            while ((record = lineReceiver.getFromReader()) != null) {
+                MutablePair<List<Object>, Boolean> transportResult = transportOneRecord(record, columns, taskPluginCollector);
+                if (!transportResult.getRight()) {
+                    writer.write(null, parquetHiveSerDe.serialize(transportResult.getLeft(), inspector));
+                }
+            }
+            writer.close(Reporter.NULL);
+        } catch (Exception e) {
+            String message = String.format("写文件文件[%s]时发生IO异常,请检查您的网络是否正常！", fileName);
+            LOG.error(message);
+            Path path = new Path(fileName);
+            deleteDir(path.getParent());
+            throw DataXException.asDataXException(HdfsWriterErrorCode.Write_FILE_IO_ERROR, e);
+        }
+    }
+
 
     public List<String> getColumnNames(List<Configuration> columns){
         List<String> columnNames = Lists.newArrayList();

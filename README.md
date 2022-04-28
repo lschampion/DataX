@@ -31,6 +31,106 @@ DataX本身作为数据同步框架，将不同数据源的同步抽象为从源
 
 
 
+# Kerberos integration
+
+datax [hdfs](https://so.csdn.net/so/search?q=hdfs&spm=1001.2101.3001.7020) 支持parquet 和 hbase支持 kerberos
+
+具体请参考 https://blog.csdn.net/gelonSun/article/details/119034469
+
+缺少包情况
+
+```shell
+# 将jar_files 的jar 手动加载本地maven仓库
+# 文件的目录根据实际情况需要修改一下
+mvn install:install-file -DgroupId=eigenbase -DartifactId=eigenbase-properties -Dversion=1.1.4 -Dpackaging=jar -Dfile=/Users/***/jars/eigenbaseeigenbaseproperties/eigenbase-properties-1.1.4.jar
+
+
+mvn install:install-file -DgroupId=org.pentaho -DartifactId=pentaho-aggdesigner-algorithm -Dversion=5.1.5-jhyde -Dpackaging=jar -Dfile=/Users/***/pentaho-aggdesigner-algorithm-5.1.5-jhyde.jar
+
+# 此jar包是自己编译的，220430，从git（https://github.com/aliyun/aliyun-tsdb-java-sdk.git）拉取指定为0.4.0版本的。
+# 如果直接使用0.3.7 release 版本会缺少类，编译不过去。
+mvn install:install-file -DgroupId=com.aliyun -DartifactId=hitsdb-client -Dversion=0.4.0 -Dpackaging=jar -Dfile=/Users/***/aliyun-tsdb-java-sdk/target/hitsdb-client-0.4.0.jar
+```
+
+
+
+- 升级hive version后，datax支持的kerberos校验会有问题导致报错，故在json配置中增加如下固定配置
+
+  ```json
+  "hadoopConfig":{
+       "mapreduce.framework.name":"classic",
+       "mapreduce.jobtracker.kerberos.principal":"xxxxx",
+       "mapreduce.jobtracker.keytab.file":"keytab path"
+  }
+  ```
+
+
+
+## datax hbase11x 修改支持kerberos
+
+- 修改后需增加配置如下
+
+```json
+"parameter": {
+    "kerberos":"true",
+    "keyTabKey":"xxx.com",
+    "keyTabValue":"${keytab_path}",
+    "hbaseSiteXml":"hbase-site.xml path",
+    "system": {
+        "javax.security.auth.useSubjectCredsOnly": "false",
+        "java.security.krb5.conf": "${krb5.conf_path}", 
+        "HADOOP_USER_NAME": "kerberos.principal"
+    },
+    "hbaseConfig": {
+        "hadoop.security.authentication": "Kerberos",
+        "hbase.client.ipc.pool.size": "20",
+        "hadoop.user.name": "xxx.com" ---xxx.com
+    },
+	
+	.....
+}
+```
+
+
+
+## datax配置[hadoop](https://so.csdn.net/so/search?q=hadoop&spm=1001.2101.3001.7020) HA（高可用）
+
+defaultFS 只能配置一个namenode节点 当namenode为高可用时，挂掉配置的那个节点datax任务就会报错，文档上写不支持MA，但通过参数配置是可以支持的，故配置为HA模式。
+
+```json
+"hadoopConfig":{
+   "dfs.nameservices":"yournamespace",
+   "dfs.ha.namenodes.yournamespace":"namenode1,namenode2",
+   "dfs.namenode.rpc-address.yournamespace.namenode1":"xxxxx:8020",
+   "dfs.namenode.rpc-address.yournamespace.namenode2":"xxxxx:8020",
+   "dfs.client.failover.proxy.provider.yournamespace": "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider",
+  "dfs.ha.automatic-failover.enabled.yournamespace":"true"
+},
+```
+
+## datax的限速
+
+需要限制datax的速度(直接修改speed)，阅读文档发现如下描述片段,直接添加在配置文件job中报错
+
+```json
+    "core": {
+         "transport" : {
+              "channel": {
+                   "speed": {
+                       "byte": 2000000  //单个channel 2M
+                    }
+               }
+         }
+    },
+    "job": {
+        "setting": {
+            "speed": {
+                "channel": 5,   // 5个channel
+                "byte": 15000000  //总共15M
+            }
+        },
+```
+
 # Support Data Channels 
 
 DataX目前已经有了比较全面的插件体系，主流的RDBMS数据库、NOSQL、大数据计算系统都已经接入，目前支持数据如下图，详情请点击：[DataX数据源参考指南](https://github.com/alibaba/DataX/wiki/DataX-all-data-channels)

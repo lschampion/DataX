@@ -12,9 +12,12 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -31,11 +34,33 @@ public class Hbase11xHelper {
 
     private static final Logger LOG = LoggerFactory.getLogger(Hbase11xHelper.class);
 
-    public static org.apache.hadoop.hbase.client.Connection getHbaseConnection(String hbaseConfig) {
+    public static org.apache.hadoop.hbase.client.Connection getHbaseConnection(Configuration config) {
+
+        org.apache.hadoop.conf.Configuration hConfiguration = HBaseConfiguration.create();
+        if (config.getBool(Key.KERBEROS,false)){
+            LOG.info("run with KERBEROS {}",config.getBool(Key.KERBEROS));
+            if (StringUtils.isBlank(config.getString(Key.HBASE_SITE_XML)) || StringUtils.isBlank(config.getString(Key.KEY_TAB_KEY)) || StringUtils.isBlank(config.getString(Key.SYSTEM))) {
+                throw DataXException.asDataXException(Hbase11xReaderErrorCode.REQUIRED_VALUE, "HBASE kerberos 信息不可为空 ");
+            }
+            String system = config.getString(Key.SYSTEM);
+            try {
+                Map<String, String> systemMap = JSON.parseObject(system, new TypeReference<Map<String, String>>() {});
+                // 用户配置的 key-value 对 来表示 hbaseConfig
+                Validate.isTrue(systemMap != null && systemMap.size() !=0, "hbaseConfig不能为空Map结构!");
+                for (Map.Entry<String, String> entry : systemMap.entrySet()) {
+                    System.setProperty(entry.getKey(), entry.getValue());
+                }
+                hConfiguration.addResource(new FileInputStream(new File(config.getString(Key.HBASE_SITE_XML))));
+            } catch (Exception e) {
+                throw DataXException.asDataXException(Hbase11xReaderErrorCode.GET_HBASE_CONNECTION_ERROR, e);
+            }
+
+
+        }
+        String hbaseConfig = config.getString(Key.HBASE_CONFIG);
         if (StringUtils.isBlank(hbaseConfig)) {
             throw DataXException.asDataXException(Hbase11xReaderErrorCode.REQUIRED_VALUE, "读 Hbase 时需要配置hbaseConfig，其内容为 Hbase 连接信息，请联系 Hbase PE 获取该信息.");
         }
-        org.apache.hadoop.conf.Configuration hConfiguration = HBaseConfiguration.create();
         try {
             Map<String, String> hbaseConfigMap = JSON.parseObject(hbaseConfig, new TypeReference<Map<String, String>>() {});
             // 用户配置的 key-value 对 来表示 hbaseConfig
@@ -46,9 +71,14 @@ public class Hbase11xHelper {
         } catch (Exception e) {
             throw DataXException.asDataXException(Hbase11xReaderErrorCode.GET_HBASE_CONNECTION_ERROR, e);
         }
+
+
         org.apache.hadoop.hbase.client.Connection hConnection = null;
         try {
             hConnection = ConnectionFactory.createConnection(hConfiguration);
+            LOG.info("config is {} all config is {}",config.getString(Key.KEY_TAB_KEY),config.toString());
+            UserGroupInformation.loginUserFromKeytab(config.getString(Key.KEY_TAB_KEY),config.getString(Key.KEY_TAB_VALUE));
+            UserGroupInformation.setConfiguration(hConfiguration);
 
         } catch (Exception e) {
             Hbase11xHelper.closeConnection(hConnection);
@@ -59,9 +89,8 @@ public class Hbase11xHelper {
 
 
     public static Table getTable(com.alibaba.datax.common.util.Configuration configuration){
-        String hbaseConfig = configuration.getString(Key.HBASE_CONFIG);
         String userTable = configuration.getString(Key.TABLE);
-        org.apache.hadoop.hbase.client.Connection hConnection = Hbase11xHelper.getHbaseConnection(hbaseConfig);
+        org.apache.hadoop.hbase.client.Connection hConnection = Hbase11xHelper.getHbaseConnection(configuration);
         TableName hTableName = TableName.valueOf(userTable);
         org.apache.hadoop.hbase.client.Admin admin = null;
         org.apache.hadoop.hbase.client.Table hTable = null;
@@ -82,7 +111,7 @@ public class Hbase11xHelper {
    public static RegionLocator getRegionLocator(com.alibaba.datax.common.util.Configuration configuration){
        String hbaseConfig = configuration.getString(Key.HBASE_CONFIG);
        String userTable = configuration.getString(Key.TABLE);
-       org.apache.hadoop.hbase.client.Connection hConnection = Hbase11xHelper.getHbaseConnection(hbaseConfig);
+       org.apache.hadoop.hbase.client.Connection hConnection = Hbase11xHelper.getHbaseConnection(configuration);
        TableName hTableName = TableName.valueOf(userTable);
        org.apache.hadoop.hbase.client.Admin admin = null;
        RegionLocator regionLocator = null;

@@ -17,6 +17,7 @@ public class Key {
     public static final String NAME = "name";
     public static final String TYPE = "type";
     public static final String DATE_FORMAT = "dateFormat";
+    public static final String PARTITION_KEY = "partitionKey";
     // must have
     public static final String WRITE_MODE = "writeMode";
     // must have
