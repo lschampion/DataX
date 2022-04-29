@@ -109,7 +109,7 @@ defaultFS 只能配置一个namenode节点 当namenode为高可用时，挂掉�
 ```
 方式二（推荐）
 推荐把core-site.xml,hdfs-site.xml,yarn-site.xml,hive-site.xml添加至hdfsreader-版本-.jar 和 hdfswriter-版本-.jar 里边
-然后hadoopConfig配置项就可以删除了，而defaultFS可以配置 "hdfs://${dfs.nameservices}"的方式了。
+然后hadoopConfig配置项就可以删除了，而defaultFS可以配置 "hdfs://${dfs.nameservices}"的方式了。其中dfs.nameservices可以到hdfs-site.xml查找
 
 ## datax的限速
 
