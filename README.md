@@ -94,10 +94,10 @@ mvn install:install-file -DgroupId=com.aliyun -DartifactId=hitsdb-client -Dversi
 
 
 ## datax配置[hadoop](https://so.csdn.net/so/search?q=hadoop&spm=1001.2101.3001.7020) HA（高可用）
-
+方式一（不推荐）
 defaultFS 只能配置一个namenode节点 当namenode为高可用时，挂掉配置的那个节点datax任务就会报错，文档上写不支持MA，但通过参数配置是可以支持的，故配置为HA模式。
-
-```json
+方式一有问题，主要是还是需要配置defaultFS，且必须指明单一的IP域名和端口号，且不能是数组。
+```plain
 "hadoopConfig":{
    "dfs.nameservices":"yournamespace",
    "dfs.ha.namenodes.yournamespace":"namenode1,namenode2",
@@ -107,6 +107,9 @@ defaultFS 只能配置一个namenode节点 当namenode为高可用时，挂掉�
   "dfs.ha.automatic-failover.enabled.yournamespace":"true"
 },
 ```
+方式二（推荐）
+推荐把core-site.xml,hdfs-site.xml,yarn-site.xml,hive-site.xml添加至hdfsreader-版本-.jar 和 hdfswriter-版本-.jar 里边
+然后hadoopConfig配置项就可以删除了，而defaultFS可以配置 "hdfs://${dfs.nameservices}"的方式了。
 
 ## datax的限速
 
