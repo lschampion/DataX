@@ -37,6 +37,10 @@ datax [hdfs](https://so.csdn.net/so/search?q=hdfs&spm=1001.2101.3001.7020) 支�
 
 具体请参考 https://blog.csdn.net/gelonSun/article/details/119034469
 
+
+无法解析 realm问题：KrbException: Cannot locate default realm
+解决方法：把krb5.conf文件放在/etc/即可。
+
 缺少包情况
 
 ```shell
@@ -108,6 +112,7 @@ defaultFS 只能配置一个namenode节点 当namenode为高可用时，挂掉�
 },
 ```
 方式二（推荐）
+参考：https://blog.csdn.net/weixin_44441757/article/details/118082138 文章
 推荐把core-site.xml,hdfs-site.xml,yarn-site.xml,hive-site.xml添加至hdfsreader-版本-.jar 和 hdfswriter-版本-.jar 里边
 然后hadoopConfig配置项就可以删除了，而defaultFS可以配置 "hdfs://${dfs.nameservices}"的方式了。其中dfs.nameservices可以到hdfs-site.xml查找
 
