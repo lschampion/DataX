@@ -1,5 +1,3 @@
-![Datax-logo](https://github.com/alibaba/DataX/blob/master/images/DataX-logo.jpg)
-
 
 # DataX
 
@@ -31,12 +29,124 @@ DataX本身作为数据同步框架，将不同数据源的同步抽象为从源
 
 
 
+# idea本地调试
+
+具体参考：https://blog.csdn.net/qq_38232753/article/details/108007463
+
+（1）编译并把target 下生成datax.tar.gz 文件解压到固定目录，作为datax.home使用。
+
+（2）配置idea，在core模块下找到Engine类，在类左侧的小三角下的（ Edit 'Engine.main()'... ），创建Run/Debug Configuration启动项。
+
+​          在VM options 设置：`-Ddatax.home=刚刚datax.tar.gz文件解压目录 -Dfile.encoding=UTF-8`
+
+​          在ProgramArguments设置： `-mode standalone -jobid -1 -job datax_mysql2mysql.json` ，这里datax_mysql2mysql.json文件放在项目目录，其他地方也都行的。
+
+（3）确认已经完成跑完编译了。就可以在Run/Debug Configuration 最下边的位置的before launch删除build项目，每次启动前就不要build了。
+
+测试SQL:
+
+```sql
+--测试mysql2mysql
+DROP TABLE IF EXISTS addax_test.`books`;
+CREATE TABLE addax_test.`books` (
+  `b_id` int(20) DEFAULT NULL,
+  `b_name` varchar(100) DEFAULT NULL,
+  `authors` varchar(100) DEFAULT NULL,
+  `price` int(20) DEFAULT NULL,
+  `pubdate` int(4) DEFAULT NULL,
+  `note` varchar(100) DEFAULT NULL,
+  `num` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO addax_test.books (b_id,b_name,authors,price,pubdate,note,num) VALUES 
+(1,'Tal of AAA','Dickes',23,1995,'novel',11)
+,(2,'EmmaT','Jane lura',35,1993,'Joke',22)
+,(3,'Story of Jane','Jane Tim',40,2001,'novel',0)
+,(4,'Lovey Day','George Byron',20,2005,'novel',30)
+,(5,'Old land','Honore Blade',30,2010,'Law',0)
+,(6,'The Battle','Upton Sara',30,1999,'medicine',40)
+,(7,'Rose Hood','Richard haggard',28,2008,'cartoon',28)
+;
+
+select * from addax_test.books;
+
+create table addax_test.books_dist like addax_test.books;
+truncate  addax_test.books_dist;
+select * from  addax_test.books_dist;
+```
+
+测试JSON任务文件 datax_mysql2mysql.json
+
+```json
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 3,
+        "bytes": -1
+      }
+    },
+    "content": {
+      "reader": {
+        "name": "mysqlreader",
+        "parameter": {
+          "username": "root",
+          "password": "123456",
+          "column": [
+            "*"
+          ],
+          "connection": [
+            {
+              "table": [
+                "books"
+              ],
+              "jdbcUrl": [
+                "jdbc:mysql://192.168.100.110:3306/addax_test?useUnicode=true&characterEncoding=utf-8&useSSL=false"
+              ],
+              "driver": "com.mysql.jdbc.Driver"
+            }
+          ],
+          "where": "1=1"
+        }
+      },
+      "writer": {
+        "name": "mysqlwriter",
+        "parameter": {
+          "writeMode": "insert",
+          "username": "root",
+          "password": "123456",
+          "column": [
+            "*"
+          ],
+          "session": [
+            "set session sql_mode='ANSI'"
+          ],
+          "preSql": [
+            "delete from @table"
+          ],
+          "connection": [
+            {
+              "jdbcUrl": "jdbc:mysql://192.168.100.110:3306/addax_test?useUnicode=true&characterEncoding=utf-8&useSSL=false",
+              "table": [
+                "books_dist"
+              ],
+              "driver": "com.mysql.jdbc.Driver"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
+
+
 # Kerberos integration
 
 datax [hdfs](https://so.csdn.net/so/search?q=hdfs&spm=1001.2101.3001.7020) 支持parquet 和 hbase支持 kerberos
 
 具体请参考 https://blog.csdn.net/gelonSun/article/details/119034469
-
 
 无法解析 realm问题：KrbException: Cannot locate default realm
 解决方法：把krb5.conf文件放在/etc/即可。
